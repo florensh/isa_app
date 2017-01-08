@@ -29,13 +29,13 @@
                 android:textAppearance="@android:style/TextAppearance.DeviceDefault.Large" />
 
             <TextView
-                android:text="status"
+                android:text="-"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:id="@+id/status"
                 android:layout_weight="1"
                 android:gravity="right"
-                android:textAppearance="@android:style/TextAppearance.DeviceDefault.Medium" />
+                android:textAppearance="@android:style/TextAppearance.DeviceDefault.Small" />
         </TableRow>
 
         <TableRow
@@ -50,13 +50,13 @@
                 android:textAppearance="@android:style/TextAppearance.DeviceDefault.Large" />
 
             <TextView
-                android:text="gps"
+                android:text="-"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:id="@+id/gps"
                 android:layout_weight="1"
                 android:gravity="right"
-                android:textAppearance="@android:style/TextAppearance.DeviceDefault.Medium" />
+                android:textAppearance="@android:style/TextAppearance.DeviceDefault.Small" />
         </TableRow>
 
         <TableRow
@@ -71,13 +71,13 @@
                 android:textAppearance="@android:style/TextAppearance.DeviceDefault.Large" />
 
             <TextView
-                android:text="store"
+                android:text="-"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:id="@+id/store"
                 android:gravity="right"
                 android:layout_weight="1"
-                android:textAppearance="@android:style/TextAppearance.DeviceDefault.Medium" />
+                android:textAppearance="@android:style/TextAppearance.DeviceDefault.Small" />
         </TableRow>
 
         <TableRow
@@ -92,13 +92,13 @@
                 android:textAppearance="@android:style/TextAppearance.DeviceDefault.Large" />
 
             <TextView
-                android:text="Path"
+                android:text="-"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:id="@+id/path"
                 android:gravity="right"
                 android:layout_weight="1"
-                android:textAppearance="@android:style/TextAppearance.DeviceDefault.Medium" />
+                android:textAppearance="@android:style/TextAppearance.DeviceDefault.Small" />
         </TableRow>
     </TableLayout>
 </RelativeLayout>
