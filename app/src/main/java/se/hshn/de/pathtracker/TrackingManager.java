@@ -1,8 +1,12 @@
 package se.hshn.de.pathtracker;
 
+import android.hardware.Sensor;
+import android.hardware.SensorManager;
 import android.location.Location;
 import android.os.AsyncTask;
 import android.util.Log;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -17,10 +21,13 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Observable;
+import java.util.Set;
 
 /**
  * Created by florens on 10.01.17.
@@ -29,19 +36,21 @@ import java.util.Observable;
 public class TrackingManager extends Observable {
 
     private static TrackingManager manager = new TrackingManager();
-
+    private static final String API_URL = "https://calm-coast-80282.herokuapp.com";
     private final ReceivingDataState RECEIVING_DATA_STATE = new ReceivingDataState();
     private final SearchForStoreState SEARCHING_STORES_STATE = new SearchForStoreState();
     private final NoStoresInBackend NO_STORES_IN_BACKEND = new NoStoresInBackend();
     private final WaitingForTracking WAITING_FOR_TRACKING = new WaitingForTracking();
     private final TrackingState TRACKING_STATE = new TrackingState();
-    private final float TOLERANCE = 0.0001f;
+    private final float TOLERANCE = 0.0003f;
     public AppState state;
     public Location currentLocation = null;
     public Store currentStore = null;
     public String userId = null;
     private List<Store> storeList = null;
     private String sessionId = null;
+
+    private SensorManager sMgr;
 
     private Long storeVisitedAt = null;
 
@@ -74,6 +83,10 @@ public class TrackingManager extends Observable {
 
     }
 
+    public void setSensorManager(SensorManager manager) {
+        this.sMgr = manager;
+    }
+
     interface AppState {
         void handleGpsUpdate(Location location);
 
@@ -82,8 +95,8 @@ public class TrackingManager extends Observable {
         void doOnStart();
     }
 
+
     private class HttpRequestTask extends AsyncTask<Void, Void, List<Store>> {
-        private static final String API_URL = "https://calm-coast-80282.herokuapp.com";
 
         @Override
         protected List<Store> doInBackground(Void... params) {
@@ -115,7 +128,22 @@ public class TrackingManager extends Observable {
                 HttpEntity<MultiValueMap> entity = new HttpEntity<MultiValueMap>(map,
                         requestHeaders);
 
-                ResponseEntity result = restTemplate.exchange(authURL, HttpMethod.POST, entity, String.class);
+                ResponseEntity result = null;
+
+                boolean gotResponse = false;
+
+                while (!gotResponse) {
+                    try {
+                        result = restTemplate.exchange(authURL, HttpMethod.POST, entity, String.class);
+                        gotResponse = true;
+
+                    } catch (Exception e) {
+                        Thread.sleep(3000);
+                    }
+
+                }
+
+
                 HttpHeaders respHeaders = result.getHeaders();
                 System.out.println(respHeaders.toString());
 
@@ -135,28 +163,9 @@ public class TrackingManager extends Observable {
 
                 Store[] stores = (Store[]) res.getBody();
 
-                //test
-/*                Measurement m = new Measurement();
-                m.setTimestamp(System.currentTimeMillis());
-                m.setLat(12.99d);
-                Set<Measurement> set = new HashSet<Measurement>();
-                set.add(m);
-
-                MeasurementDataset dataset = new MeasurementDataset();
-                ObjectMapper mapper = new ObjectMapper();
-                dataset.setMeasurements(mapper.writeValueAsString(set));
-
-                HttpEntity measurementDatasetEntiy = new HttpEntity(dataset, headers);
-                ResponseEntity<MeasurementDataset> out = restTemplate.exchange(baseUrl + "/api/measurement-datasets", HttpMethod.POST, measurementDatasetEntiy
-                        , MeasurementDataset.class);
-
-                System.out.println(out.getBody().getId());*/
-
-                //end test
-
                 return Arrays.asList(stores);
             } catch (Exception e) {
-                Log.e("MainActivity", e.getMessage(), e);
+                Log.e("TrackingManager", e.getMessage(), e);
             }
 
             return null;
@@ -239,7 +248,9 @@ public class TrackingManager extends Observable {
         public void doOnStart() {
             super.doOnStart();
             storeVisitedAt = null;
-            if (currentLocation != null && System.currentTimeMillis() < currentLocation.getTime() + 10000) {
+            if (currentLocation != null
+                    //&& System.currentTimeMillis() < currentLocation.getTime() + 10000
+                    ) {
                 findStore(currentLocation);
             }
         }
@@ -253,6 +264,7 @@ public class TrackingManager extends Observable {
         }
 
         private synchronized void findStore(Location location) {
+            System.out.println("searching with location");
             Store s = resolveStore(location);
             if (s != null) {
                 currentStore = s;
@@ -271,6 +283,14 @@ public class TrackingManager extends Observable {
     }
 
     class WaitingForTracking extends AbstractAppState implements AppState {
+
+
+
+        @Override
+        public void doOnStart() {
+            super.doOnStart();
+            changeStatus(TRACKING_STATE);
+        }
 
         @Override
         public void handleGpsUpdate(Location location) {
@@ -293,12 +313,99 @@ public class TrackingManager extends Observable {
         }
     }
 
-    class TrackingState extends AbstractAppState implements AppState {
+    class TrackingState extends AbstractAppState implements AppState, StepListener {
+
+        StepDetector stepDetector;
+        MeasurementDataset dataSet;
+        StepEstimator stepEstimator;
+        List<Measurement> measurements;
 
         @Override
         public String getName() {
             return "Tracking path";
         }
+
+        @Override
+        public void doOnStart() {
+            super.doOnStart();
+            stepDetector = new StepDetector();
+            stepDetector.addStepListener(this);
+            dataSet = new MeasurementDataset();
+            stepEstimator = new StepEstimator();
+            measurements = new ArrayList<Measurement>();
+
+
+            Sensor gyro, acc, rot, mag, steps, ori;
+
+            acc = sMgr.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+            mag = sMgr.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+            rot = sMgr.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
+            sMgr.registerListener(stepDetector, acc, SensorManager.SENSOR_DELAY_FASTEST);
+            sMgr.registerListener(stepEstimator, acc, SensorManager.SENSOR_DELAY_FASTEST);
+            sMgr.registerListener(stepEstimator, mag, SensorManager.SENSOR_DELAY_FASTEST);
+            sMgr.registerListener(stepEstimator, rot, SensorManager.SENSOR_DELAY_FASTEST);
+
+        }
+
+        private void stopAndSend() {
+            new SendToBackendTask().execute();
+        }
+
+
+        @Override
+        public void onStep() {
+            measurements.add(stepEstimator.getStep(currentLocation));
+        }
+
+        @Override
+        public void passValue() {
+
+        }
+
+
+        private class SendToBackendTask extends AsyncTask<Object, Object, Void> {
+
+
+            @Override
+            protected Void doInBackground(Object... params) {
+                try {
+                    String baseUrl = API_URL;
+
+                    HttpMessageConverter stringHttpMessageConverternew = new StringHttpMessageConverter();
+
+                    List<HttpMessageConverter<?>> messageConverters = new LinkedList<HttpMessageConverter<?>>();
+
+
+                    messageConverters.add(stringHttpMessageConverternew);
+                    messageConverters.add(new MappingJackson2HttpMessageConverter());
+
+                    RestTemplate restTemplate = new RestTemplate();
+
+                    restTemplate.setMessageConverters(messageConverters);
+
+                    HttpHeaders headers = new HttpHeaders();
+                    headers.add("Cookie", sessionId);
+
+                    ObjectMapper mapper = new ObjectMapper();
+                    dataSet.setMeasurements(mapper.writeValueAsString(measurements));
+
+                    HttpEntity measurementDatasetEntiy = new HttpEntity(dataSet, headers);
+                    ResponseEntity<MeasurementDataset> out = restTemplate.exchange(baseUrl + "/api/measurement-datasets", HttpMethod.POST, measurementDatasetEntiy
+                            , MeasurementDataset.class);
+
+                    System.out.println(out.getBody().getId());
+
+                } catch (Exception e) {
+                    Log.e("TrackingManager", e.getMessage(), e);
+                }
+
+                return null;
+            }
+
+
+        }
+
+
     }
 
 

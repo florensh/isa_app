@@ -4,6 +4,7 @@ import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.hardware.SensorManager;
 import android.location.Criteria;
 import android.location.Location;
 import android.location.LocationListener;
@@ -48,6 +49,7 @@ public class MainActivity extends AppCompatActivity implements Observer, Locatio
         this.currentPathTextView = (TextView) findViewById(R.id.path);
 
         trackingManager.addObserver(this);
+        trackingManager.setSensorManager((SensorManager) this.getSystemService(SENSOR_SERVICE));
         setTextFields();
 
         WifiManager wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
