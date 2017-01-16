@@ -42,6 +42,9 @@ public class StepDetector implements SensorEventListener
     public void addStepListener(StepListener sl) {
         mStepListeners.add(sl);
     }
+    public void removeAllListener(){
+        this.mStepListeners = new ArrayList<StepListener>();
+    }
 
     //public void onSensorChanged(int sensor, float[] values) {
     public void onSensorChanged(SensorEvent event) {

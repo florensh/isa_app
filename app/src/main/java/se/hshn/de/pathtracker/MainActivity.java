@@ -47,6 +47,7 @@ public class MainActivity extends AppCompatActivity implements Observer, Locatio
         this.gpsTextView = (TextView) findViewById(R.id.gps);
         this.storeTextView = (TextView) findViewById(R.id.store);
         this.currentPathTextView = (TextView) findViewById(R.id.path);
+        this.currentPathTextView.setText("-");
 
         trackingManager.addObserver(this);
         trackingManager.setSensorManager((SensorManager) this.getSystemService(SENSOR_SERVICE));
@@ -140,7 +141,13 @@ public class MainActivity extends AppCompatActivity implements Observer, Locatio
             storeTextView.setText(trackingManager.currentStore.getName());
         }
 
-        currentPathTextView.setText("");
+        if(trackingManager.steps > 0){
+            this.currentPathTextView.setText(trackingManager.steps + " steps");
+        }else{
+            this.currentPathTextView.setText("-");
+        }
+
+
     }
 
     @Override

@@ -42,13 +42,24 @@ public class TrackingManager extends Observable {
     private final NoStoresInBackend NO_STORES_IN_BACKEND = new NoStoresInBackend();
     private final WaitingForTracking WAITING_FOR_TRACKING = new WaitingForTracking();
     private final TrackingState TRACKING_STATE = new TrackingState();
+    private final PostProcessState POST_PROCESS_STATE = new PostProcessState();
     private final float TOLERANCE = 0.0003f;
     public AppState state;
     public Location currentLocation = null;
     public Store currentStore = null;
     public String userId = null;
+    public int steps = 0;
     private List<Store> storeList = null;
     private String sessionId = null;
+
+
+    StepDetector stepDetector;
+    MeasurementDataset dataSet;
+    StepEstimator stepEstimator;
+    List<Measurement> measurements;
+
+
+
 
     private SensorManager sMgr;
 
@@ -298,7 +309,7 @@ public class TrackingManager extends Observable {
 
             Store s = resolveStore(location);
             if (s != null && s.getId().equals(currentStore.getId())) {
-                if (location.getTime() > storeVisitedAt + 5000 && location.getAccuracy() < 10.0f) {
+                if (location.getTime() > storeVisitedAt + 5000 && location.getAccuracy() <= 10.0f) {
                     changeStatus(TRACKING_STATE);
                 }
             } else {
@@ -315,46 +326,65 @@ public class TrackingManager extends Observable {
 
     class TrackingState extends AbstractAppState implements AppState, StepListener {
 
-        StepDetector stepDetector;
-        MeasurementDataset dataSet;
-        StepEstimator stepEstimator;
-        List<Measurement> measurements;
+
 
         @Override
         public String getName() {
             return "Tracking path";
         }
 
+
+/*        @Override
+        public void handleGpsUpdate(Location location) {
+            super.handleGpsUpdate(location);
+            Store s = resolveStore(location);
+            if(s == null || !s.getName().equals(currentStore)){
+                stopAndSend();
+                changeStatus(SEARCHING_STORES_STATE);
+            }
+        }*/
+
         @Override
         public void doOnStart() {
             super.doOnStart();
+
+            steps = 0;
             stepDetector = new StepDetector();
+            stepDetector.setSensitivity(15f);
             stepDetector.addStepListener(this);
             dataSet = new MeasurementDataset();
             stepEstimator = new StepEstimator();
             measurements = new ArrayList<Measurement>();
 
-
-            Sensor gyro, acc, rot, mag, steps, ori;
+            Sensor acc, rot, mag;
 
             acc = sMgr.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
             mag = sMgr.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
             rot = sMgr.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
             sMgr.registerListener(stepDetector, acc, SensorManager.SENSOR_DELAY_FASTEST);
-            sMgr.registerListener(stepEstimator, acc, SensorManager.SENSOR_DELAY_FASTEST);
+            // sMgr.registerListener(stepEstimator, acc, SensorManager.SENSOR_DELAY_FASTEST);
             sMgr.registerListener(stepEstimator, mag, SensorManager.SENSOR_DELAY_FASTEST);
             sMgr.registerListener(stepEstimator, rot, SensorManager.SENSOR_DELAY_FASTEST);
 
         }
 
         private void stopAndSend() {
-            new SendToBackendTask().execute();
+            stepDetector.removeAllListener();
+            changeStatus(POST_PROCESS_STATE);
+
+
         }
 
 
         @Override
         public void onStep() {
+            steps++;
+            setChanged();
+            notifyObservers();
             measurements.add(stepEstimator.getStep(currentLocation));
+            if(steps >= 20){
+                stopAndSend();
+            }
         }
 
         @Override
@@ -362,6 +392,14 @@ public class TrackingManager extends Observable {
 
         }
 
+
+
+
+
+
+    }
+
+    class PostProcessState extends AbstractAppState implements AppState {
 
         private class SendToBackendTask extends AsyncTask<Object, Object, Void> {
 
@@ -405,7 +443,17 @@ public class TrackingManager extends Observable {
 
         }
 
+        @Override
+        public String getName() {
+            return "Sending to backend";
+        }
 
+        @Override
+        public void doOnStart() {
+            super.doOnStart();
+            DatasetStoreService.store(measurements);
+            //new SendToBackendTask().execute();
+        }
     }
 
 

@@ -10,11 +10,37 @@ public class Measurement {
     private Double lat;
     private Double lon;
     private Float accuracy;
-    private Float direction;
+    private Float azimuth;
+    private Float roll;
+    private Float pitch;
     private Float length;
     private Float magx;
     private Float magy;
     private Float magz;
+
+    public Float getAzimuth() {
+        return azimuth;
+    }
+
+    public void setAzimuth(Float azimuth) {
+        this.azimuth = azimuth;
+    }
+
+    public Float getRoll() {
+        return roll;
+    }
+
+    public void setRoll(Float roll) {
+        this.roll = roll;
+    }
+
+    public Float getPitch() {
+        return pitch;
+    }
+
+    public void setPitch(Float pitch) {
+        this.pitch = pitch;
+    }
 
     public Long getTimestamp() {
         return timestamp;
@@ -46,14 +72,6 @@ public class Measurement {
 
     public void setAccuracy(Float accuracy) {
         this.accuracy = accuracy;
-    }
-
-    public Float getDirection() {
-        return direction;
-    }
-
-    public void setDirection(Float direction) {
-        this.direction = direction;
     }
 
     public Float getLength() {

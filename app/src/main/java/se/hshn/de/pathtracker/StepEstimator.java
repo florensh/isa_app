@@ -23,10 +23,36 @@ public class StepEstimator implements SensorEventListener {
         float[] values = new float[3];
 
         if (sensorEvent.sensor.getType() == Sensor.TYPE_ROTATION_VECTOR) {
-            SensorManager.getRotationMatrixFromVector(R, sensorEvent.values);
-        } else if (sensorEvent.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD || sensorEvent.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
-            sensor_cache[sensorEvent.sensor.getType()] = transformToEarthData(sensorEvent.values, R);
+
+            float[] tempVal = new float[3];
+            tempVal[0] = sensorEvent.values[2];
+            tempVal[1] = sensorEvent.values[1];
+            tempVal[2] = sensorEvent.values[0];
+
+            SensorManager.getRotationMatrixFromVector(R, tempVal);
+            System.arraycopy(SensorManager.getOrientation( R, orientation ), 0, values, 0, 3);
+            sensor_cache[Sensor.TYPE_ORIENTATION] = values;
+
         }
+        else if (sensorEvent.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD || sensorEvent.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
+            sensor_cache[sensorEvent.sensor.getType()] = sensorEvent.values;
+        }
+/*        else if (sensorEvent.sensor.getType() == Sensor.TYPE_LINEAR_ACCELERATION) {
+
+            float[] res = transformToEarthData(sensorEvent.values, R);
+            //System.out.println(res[0]);
+            //System.out.println(res[1]);
+            //System.out.println(res[2]);
+
+            if (res[0] > 10 || res[1] > 10) {
+                double direction = Math.atan2(res[1], res[0]);
+
+                double degree = Math.toDegrees(direction);
+                System.out.println(degree);
+            }
+
+
+        }*/
 
     }
 
@@ -68,13 +94,18 @@ public class StepEstimator implements SensorEventListener {
         m.setLength(0.65f);
 
 
-
         //double direction = Math.atan2(sensor_cache[Sensor.TYPE_ACCELEROMETER][2], sensor_cache[Sensor.TYPE_ACCELEROMETER][1]);
-        double direction = Math.atan(sensor_cache[Sensor.TYPE_ACCELEROMETER][2] / sensor_cache[Sensor.TYPE_ACCELEROMETER][1]);
+/*
+        double direction = Math.atan(sensor_cache[Sensor.TYPE_LINEAR_ACCELERATION][1] / sensor_cache[Sensor.TYPE_LINEAR_ACCELERATION][0]);
 
         double degree = Math.toDegrees(direction);
         System.out.println(degree);
         m.setDirection((float) direction);
+*/
+
+        m.setAzimuth(sensor_cache[Sensor.TYPE_ORIENTATION][0]);
+        m.setPitch(sensor_cache[Sensor.TYPE_ORIENTATION][1]);
+        m.setRoll(sensor_cache[Sensor.TYPE_ORIENTATION][2]);
 
         return m;
     }
