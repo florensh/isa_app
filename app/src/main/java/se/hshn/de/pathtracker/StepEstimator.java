@@ -1,10 +1,14 @@
 package se.hshn.de.pathtracker;
 
+import android.content.Context;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.location.Location;
+import android.view.Display;
+import android.view.Surface;
+import android.view.WindowManager;
 
 /**
  * Created by florens on 12.01.17.
@@ -15,6 +19,8 @@ public class StepEstimator implements SensorEventListener {
     private float[][] sensor_cache = new float[30][3];
     private float[] orientation = new float[3];
     private float[] R = new float[16];
+    private float[] Rrm = new float[16];
+    private Context context = null;
 
 
     @Override
@@ -24,13 +30,16 @@ public class StepEstimator implements SensorEventListener {
 
         if (sensorEvent.sensor.getType() == Sensor.TYPE_ROTATION_VECTOR) {
 
-            float[] tempVal = new float[3];
-            tempVal[0] = sensorEvent.values[2];
-            tempVal[1] = sensorEvent.values[1];
-            tempVal[2] = sensorEvent.values[0];
+            Display display = ((WindowManager) context.getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay();
+            int rotation = display.getRotation();
+            //System.out.println(rotation);
 
-            SensorManager.getRotationMatrixFromVector(R, tempVal);
-            System.arraycopy(SensorManager.getOrientation( R, orientation ), 0, values, 0, 3);
+
+
+            SensorManager.getRotationMatrixFromVector(R, sensorEvent.values);
+            SensorManager.remapCoordinateSystem(R, SensorManager.AXIS_Z,SensorManager.AXIS_MINUS_X, Rrm);
+            System.arraycopy(SensorManager.getOrientation( Rrm, orientation ), 0, values, 0, 3);
+            //System.out.println(orientation[0]);
             sensor_cache[Sensor.TYPE_ORIENTATION] = values;
 
         }
@@ -110,4 +119,7 @@ public class StepEstimator implements SensorEventListener {
         return m;
     }
 
+    public void setContext(Context context) {
+        this.context = context;
+    }
 }

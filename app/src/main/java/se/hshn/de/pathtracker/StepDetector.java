@@ -16,6 +16,7 @@ import android.util.Log;
 public class StepDetector implements SensorEventListener
 {
     private final static String TAG = "StepDetector";
+    private static final int TIME_DELTA = 500;
     private float   mLimit = 10;
     private float   mLastValues[] = new float[3*2];
     private float   mScale[] = new float[2];
@@ -25,6 +26,7 @@ public class StepDetector implements SensorEventListener
     private float   mLastExtremes[][] = { new float[3*2], new float[3*2] };
     private float   mLastDiff[] = new float[3*2];
     private int     mLastMatch = -1;
+    private long lastStep = 0;
 
     private ArrayList<StepListener> mStepListeners = new ArrayList<StepListener>();
 
@@ -75,8 +77,10 @@ public class StepDetector implements SensorEventListener
                             boolean isAlmostAsLargeAsPrevious = diff > (mLastDiff[k]*2/3);
                             boolean isPreviousLargeEnough = mLastDiff[k] > (diff/3);
                             boolean isNotContra = (mLastMatch != 1 - extType);
+                            boolean isNotTooEarly = lastStep == 0 || System.currentTimeMillis() - lastStep > TIME_DELTA;
 
-                            if (isAlmostAsLargeAsPrevious && isPreviousLargeEnough && isNotContra) {
+                            if (isAlmostAsLargeAsPrevious && isPreviousLargeEnough && isNotContra && isNotTooEarly) {
+                                lastStep = System.currentTimeMillis();
                                 Log.i(TAG, "step");
                                 for (StepListener stepListener : mStepListeners) {
                                     stepListener.onStep();

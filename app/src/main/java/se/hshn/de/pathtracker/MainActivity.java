@@ -56,6 +56,9 @@ public class MainActivity extends AppCompatActivity implements Observer, Locatio
         WifiManager wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
         WifiInfo wInfo = wifiManager.getConnectionInfo();
         trackingManager.setUserid(wInfo.getMacAddress());
+        trackingManager.setContext(getApplicationContext());
+
+
 
 
         if (Build.VERSION.SDK_INT >= 23 &&

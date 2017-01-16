@@ -1,8 +1,14 @@
 package se.hshn.de.pathtracker;
 
+import android.content.Context;
 import android.hardware.Sensor;
 import android.hardware.SensorManager;
 import android.location.Location;
+import android.media.AudioManager;
+import android.media.MediaPlayer;
+import android.media.Ringtone;
+import android.media.RingtoneManager;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.util.Log;
 
@@ -51,6 +57,7 @@ public class TrackingManager extends Observable {
     public int steps = 0;
     private List<Store> storeList = null;
     private String sessionId = null;
+    private Context context = null;
 
 
     StepDetector stepDetector;
@@ -96,6 +103,10 @@ public class TrackingManager extends Observable {
 
     public void setSensorManager(SensorManager manager) {
         this.sMgr = manager;
+    }
+
+    public void setContext(Context applicationContext) {
+        this.context = applicationContext;
     }
 
     interface AppState {
@@ -350,10 +361,11 @@ public class TrackingManager extends Observable {
 
             steps = 0;
             stepDetector = new StepDetector();
-            stepDetector.setSensitivity(15f);
+            stepDetector.setSensitivity(7f);
             stepDetector.addStepListener(this);
             dataSet = new MeasurementDataset();
             stepEstimator = new StepEstimator();
+            stepEstimator.setContext(context);
             measurements = new ArrayList<Measurement>();
 
             Sensor acc, rot, mag;
@@ -378,11 +390,32 @@ public class TrackingManager extends Observable {
 
         @Override
         public void onStep() {
+
+            Uri defaultRingtoneUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+            MediaPlayer mediaPlayer = new MediaPlayer();
+
+            try {
+                mediaPlayer.setDataSource(context, defaultRingtoneUri);
+                mediaPlayer.setAudioStreamType(AudioManager.STREAM_NOTIFICATION);
+                mediaPlayer.prepare();
+                mediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+
+                    @Override
+                    public void onCompletion(MediaPlayer mp)
+                    {
+                        mp.release();
+                    }
+                });
+                mediaPlayer.start();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
             steps++;
             setChanged();
             notifyObservers();
             measurements.add(stepEstimator.getStep(currentLocation));
-            if(steps >= 20){
+            if(steps >= 40){
                 stopAndSend();
             }
         }
